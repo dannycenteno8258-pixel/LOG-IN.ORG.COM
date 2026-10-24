@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Liquid Arcade Hub</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for Web Audio Synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Orbitron:wght@700;900&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #030712;
+            color: #f1f5f9;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .liquid-btn {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .liquid-btn:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-12px); }
+            40%, 80% { transform: translateX(12px); }
+        }
+
+        .shake-anim {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        .game-canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            aspect-ratio: 16 / 9;
+            margin: 0 auto;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 1rem;
+            background: #020617;
+            touch-action: none;
+        }
+
+        /* Virtual Control Touch Styling */
+        .touch-btn {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100">
+
+    <!-- Header Navigation -->
+    <header class="w-full glass-panel z-30 px-4 py-3 sticky top-0 flex justify-between items-center border-b border-slate-800/80">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="goToHub()">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                <i class="fa-solid fa-futbol text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-orbitron text-lg md:text-xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-400 to-pink-500">
+                    SUPER LIQUID ARCADE
+                </h1>
+                <p class="text-xs text-slate-400 -mt-1 hidden sm:block">Arcade Gaming Suite</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2 md:space-x-3">
+            <button id="soundToggleBtn" onclick="toggleAudio()" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs md:text-sm flex items-center gap-2 border border-slate-700 transition">
+                <i class="fa-solid fa-volume-high text-cyan-400" id="soundIcon"></i>
+                <span class="hidden md:inline" id="soundText">Sound ON</span>
+            </button>
+            <button id="hubNavBtn" onclick="goToHub()" class="hidden px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs md:text-sm font-semibold flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition">
+                <i class="fa-solid fa-house"></i>
+                <span class="hidden md:inline">Arcade Hub</span>
+            </button>
+            <button id="lockNavBtn" onclick="lockPortal()" class="px-3 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 text-xs md:text-sm flex items-center gap-2 border border-rose-800/50 transition">
+                <i class="fa-solid fa-lock"></i>
+                <span class="hidden md:inline">Lock</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="flex-grow flex items-center justify-center p-2 sm:p-4 md:p-6 relative">
+
+        <!-- ================= 1. PASSWORD LOCK SCREEN ================= -->
+        <section id="authScreen" class="w-full max-w-md glass-panel p-6 sm:p-8 rounded-3xl text-center shadow-2xl relative overflow-hidden transition-all duration-300">
+            <div class="w-20 h-20 mx-auto mb-5 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-pink-500 p-0.5 shadow-xl shadow-cyan-500/20">
+                <div class="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
+                    <i class="fa-solid fa-shield-halved text-4xl text-cyan-400"></i>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-black font-orbitron text-white mb-2 tracking-wide">SYSTEM LOCKED</h2>
+            <p class="text-xs sm:text-sm text-slate-400 mb-6">Enter authorized passcode to access Super Liquid Soccer & Arcade Suite.</p>
+
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div class="relative">
+                    <input type="password" id="passwordInput" placeholder="Enter Security Password" 
+                        class="w-full px-4 py-3.5 bg-slate-900/90 border-2 border-slate-700 focus:border-cyan-400 rounded-2xl text-center text-lg font-mono tracking-widest text-cyan-300 placeholder-slate-600 focus:outline-none focus:ring-4 focus:ring-cyan-500/20 transition duration-200">
+                    <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-3.5 text-slate-500 hover:text-cyan-400 px-2">
+                        <i class="fa-solid fa-eye" id="eyeIcon"></i>
+                    </button>
+                </div>
+
+                <div id="authErrorMsg" class="text-rose-400 text-xs font-semibold h-4 transition-opacity opacity-0 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-circle-exclamation"></i> Incorrect Password! Access Denied.
+                </div>
+
+                <button type="submit" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold tracking-wide shadow-lg shadow-cyan-500/30 liquid-btn flex items-center justify-center gap-2">
+                    <span>UNLOCK ARCADE</span>
+                    <i class="fa-solid fa-key"></i>
+                </button>
+            </form>
+        </section>
+
+
+        <!-- ================= 2. ARCADE DASHBOARD HUB ================= -->
+        <section id="hubScreen" class="hidden w-full max-w-6xl space-y-6 transition-all duration-300">
+            
+            <!-- Hero Featured Banner -->
+            <div class="glass-panel p-6 md:p-8 rounded-3xl relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 border border-slate-700/60">
+                <div class="max-w-2xl relative z-10">
+                    <span class="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-bold tracking-wider uppercase border border-cyan-500/30 mb-3 inline-block">
+                        <i class="fa-solid fa-star text-amber-400 mr-1"></i> Featured Game
+                    </span>
+                    <h2 class="text-3xl md:text-5xl font-black font-orbitron text-white mb-3 tracking-wide">
+                        SUPER LIQUID <span class="text-cyan-400">SOCCER</span>
+                    </h2>
+                    <p class="text-slate-300 text-xs sm:text-sm md:text-base mb-6 leading-relaxed">
+                        Play physics-based jelly soccer! Fluid soft-body players, sloshing pitch momentum, power shots, lob passes, slide tackles, and liquid particles!
+                    </p>
+                    <button onclick="launchGame('soccer')" class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-pink-500 text-white font-black tracking-wider text-sm md:text-base shadow-xl shadow-cyan-500/30 liquid-btn flex items-center gap-3">
+                        <i class="fa-solid fa-play text-lg"></i> PLAY NOW
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg md:text-xl font-bold font-orbitron text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad text-cyan-400"></i> ARCADE COLLECTION (6 GAMES)
+                </h3>
+            </div>
+
+            <!-- Grid of 6 Games -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+                <!-- 1. Super Liquid Soccer -->
+                <div class="glass-panel rounded-2xl p-5 hover:border-cyan-400/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div>
+                        <div class="h-32 rounded-xl bg-gradient-to-br from-cyan-950 to-blue-900 border border-slate-700/50 flex items-center justify-center mb-3 relative overflow-hidden">
+                            <i class="fa-solid fa-futbol text-5xl text-cyan-400 group-hover:scale-110 transition duration-300"></i>
+                            <span class="absolute top-2 right-2 bg-slate-900/90 text-cyan-300 text-[10px] font-mono px-2 py-0.5 rounded border border-cyan-500/30">FEATURED</span>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-1">Super Liquid Soccer</h4>
+                        <p class="text-xs text-slate-400 mb-3">Soft-body jelly physics, slippery pitch momentum, power shots & slide tackles.</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <span class="text-xs text-slate-400">Best Match: <strong id="hs-soccer" class="text-cyan-400 font-mono">0-0</strong></span>
+                        <button onclick="launchGame('soccer')" class="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition">PLAY</button>
+                    </div>
+                </div>
+
+                <!-- 2. Liquid Pong / Water Hockey -->
+                <div class="glass-panel rounded-2xl p-5 hover:border-blue-400/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div>
+                        <div class="h-32 rounded-xl bg-gradient-to-br from-blue-950 to-indigo-900 border border-slate-700/50 flex items-center justify-center mb-3 relative overflow-hidden">
+                            <i class="fa-solid fa-table-tennis-paddle-ball text-5xl text-blue-400 group-hover:scale-110 transition duration-300"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-1">Liquid Pong / Water Hockey</h4>
+                        <p class="text-xs text-slate-400 mb-3">Air hockey with fluid wave currents pushing the puck and liquid paddles.</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <span class="text-xs text-slate-400">Best Score: <strong id="hs-pong" class="text-blue-400 font-mono">0</strong></span>
+                        <button onclick="launchGame('pong')" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">PLAY</button>
+                    </div>
+                </div>
+
+                <!-- 3. Penalty Shootout FX -->
+                <div class="glass-panel rounded-2xl p-5 hover:border-pink-400/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div>
+                        <div class="h-32 rounded-xl bg-gradient-to-br from-pink-950 to-purple-900 border border-slate-700/50 flex items-center justify-center mb-3 relative overflow-hidden">
+                            <i class="fa-solid fa-bullseye text-5xl text-pink-400 group-hover:scale-110 transition duration-300"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-1">Penalty Shootout Liquid</h4>
+                        <p class="text-xs text-slate-400 mb-3">3D-perspective curve shots, wind physics, and goalie reach reaction.</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <span class="text-xs text-slate-400">Best Streak: <strong id="hs-shootout" class="text-pink-400 font-mono">0</strong></span>
+                        <button onclick="launchGame('shootout')" class="px-4 py-1.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold transition">PLAY</button>
+                    </div>
+                </div>
+
+                <!-- 4. Slippery Liquid Runner -->
+                <div class="glass-panel rounded-2xl p-5 hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div>
+                        <div class="h-32 rounded-xl bg-gradient-to-br from-amber-950 to-orange-900 border border-slate-700/50 flex items-center justify-center mb-3 relative overflow-hidden">
+                            <i class="fa-solid fa-person-running text-5xl text-amber-400 group-hover:scale-110 transition duration-300"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-1">Slippery Liquid Runner</h4>
+                        <p class="text-xs text-slate-400 mb-3">Jump wobbly liquid ball over obstacles, boost through mud pads, collect trophies.</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <span class="text-xs text-slate-400">Best Distance: <strong id="hs-runner" class="text-amber-400 font-mono">0m</strong></span>
+                        <button onclick="launchGame('runner')" class="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition">PLAY</button>
+                    </div>
+                </div>
+
+                <!-- 5. Slime Soccer Volley -->
+                <div class="glass-panel rounded-2xl p-5 hover:border-emerald-400/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div>
+                        <div class="h-32 rounded-xl bg-gradient-to-br from-emerald-950 to-teal-900 border border-slate-700/50 flex items-center justify-center mb-3 relative overflow-hidden">
+                            <i class="fa-solid fa-volleyball text-5xl text-emerald-400 group-hover:scale-110 transition duration-300"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-1">Slime Soccer Volley</h4>
+                        <p class="text-xs text-slate-400 mb-3">1v1 Slime volleyball with bouncy gravity jumps and splash hits over net.</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <span class="text-xs text-slate-400">Best Score: <strong id="hs-volley" class="text-emerald-400 font-mono">0</strong></span>
+                        <button onclick="launchGame('volley')" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">PLAY</button>
+                    </div>
+                </div>
+
+                <!-- 6. Retro Liquid Juggler -->
+                <div class="glass-panel rounded-2xl p-5 hover:border-purple-400/50 transition-all duration-300 flex flex-col justify-between group">
+                    <div>
+                        <div class="h-32 rounded-xl bg-gradient-to-br from-purple-950 to-fuchsia-900 border border-slate-700/50 flex items-center justify-center mb-3 relative overflow-hidden">
+                            <i class="fa-solid fa-hands-holding-circle text-5xl text-purple-400 group-hover:scale-110 transition duration-300"></i>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-1">Retro Liquid Juggler</h4>
+                        <p class="text-xs text-slate-400 mb-3">Keep multiple squishy soccer balls in the air with multiplier combo touches.</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                        <span class="text-xs text-slate-400">Best Juggles: <strong id="hs-juggler" class="text-purple-400 font-mono">0</strong></span>
+                        <button onclick="launchGame('juggler')" class="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition">PLAY</button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ================= 3. ACTIVE GAME SCREEN ================= -->
+        <section id="gameScreen" class="hidden w-full max-w-5xl flex flex-col items-center">
+            
+            <!-- Game Top Control Bar -->
+            <div class="w-full flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
+                <div>
+                    <h2 id="activeGameTitle" class="text-lg md:text-2xl font-black font-orbitron text-cyan-400">SUPER LIQUID SOCCER</h2>
+                    <p id="activeGameSubtitle" class="text-xs text-slate-400 hidden sm:block">Mobile: Touch Controls Below | Keyboard: Arrow Keys/WASD + Space/Z/X</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="resetCurrentGame()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700">
+                        <i class="fa-solid fa-rotate-right text-cyan-400"></i> Restart
+                    </button>
+                    <button onclick="goToHub()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700">
+                        <i class="fa-solid fa-xmark text-rose-400"></i> Exit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="game-canvas-container rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-800/80 bg-slate-950">
+                <canvas id="gameCanvas" width="960" height="540"></canvas>
+            </div>
+
+            <!-- UNIVERSAL MOBILE CONTROLS BOARD -->
+            <div id="mobileControlBoard" class="w-full max-w-2xl mt-3 grid grid-cols-2 gap-2 sm:gap-4 px-2">
+                
+                <!-- Touch Joystick / D-Pad Area -->
+                <div class="flex items-center justify-center">
+                    <div class="grid grid-cols-3 gap-1.5 w-36 h-36 sm:w-40 sm:h-40">
+                        <div></div>
+                        <button id="btnUp" class="touch-btn bg-slate-800/90 active:bg-cyan-600/90 rounded-2xl flex items-center justify-center text-white text-xl border border-slate-700/80 shadow-lg"><i class="fa-solid fa-chevron-up"></i></button>
+                        <div></div>
+                        <button id="btnLeft" class="touch-btn bg-slate-800/90 active:bg-cyan-600/90 rounded-2xl flex items-center justify-center text-white text-xl border border-slate-700/80 shadow-lg"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button id="btnDown" class="touch-btn bg-slate-800/90 active:bg-cyan-600/90 rounded-2xl flex items-center justify-center text-white text-xl border border-slate-700/80 shadow-lg"><i class="fa-solid fa-chevron-down"></i></button>
+                        <button id="btnRight" class="touch-btn bg-slate-800/90 active:bg-cyan-600/90 rounded-2xl flex items-center justify-center text-white text-xl border border-slate-700/80 shadow-lg"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons Container -->
+                <div class="flex items-center justify-center gap-2 sm:gap-3">
+                    <button id="btnActionA" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-pink-600 to-rose-500 active:scale-90 text-white font-black text-sm sm:text-base shadow-lg shadow-pink-500/30 border border-pink-400/50 flex flex-col items-center justify-center">
+                        <span id="labelActionA">SHOOT</span>
+                        <span class="text-[9px] opacity-75 font-mono">(A)</span>
+                    </button>
+                    <button id="btnActionB" class="touch-btn w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-500 active:scale-90 text-white font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/30 border border-cyan-400/50 flex flex-col items-center justify-center">
+                        <span id="labelActionB">LOB</span>
+                        <span class="text-[9px] opacity-75 font-mono">(B)</span>
+                    </button>
+                    <button id="btnActionC" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-amber-600 to-orange-500 active:scale-90 text-white font-black text-xs shadow-lg shadow-amber-500/30 border border-amber-400/50 flex flex-col items-center justify-center">
+                        <span id="labelActionC">SLIDE</span>
+                        <span class="text-[8px] opacity-75 font-mono">(C)</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="w-full text-center py-2.5 text-xs text-slate-500 border-t border-slate-900 bg-slate-950">
+        Super Liquid Arcade Hub &bull; Pure Canvas & Synthesized Web Audio
+    </footer>
+
+    <!-- MAIN APP & GAME ENGINES JAVASCRIPT -->
+    <script>
+        /* ================= AUTHENTICATION & GLOBAL STATE ================= */
+        const MASTER_PASSWORD = "SUPERLIQUIDSOCCER1231";
+        let isAudioEnabled = true;
+        let activeGameMode = null;
+        let animationFrameId = null;
+
+        // Sound System via Tone.js
+        let synth = null;
+        let memSynth = null;
+
+        function initAudio() {
+            if (!synth && typeof Tone !== 'undefined') {
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -8;
+                memSynth = new Tone.MembraneSynth().toDestination();
+                memSynth.volume.value = -4;
+            }
+        }
+
+        function playSound(type) {
+            if (!isAudioEnabled) return;
+            initAudio();
+            try {
+                if (Tone.context.state !== 'running') Tone.start();
+
+                if (type === 'kick') memSynth.triggerAttackRelease("C2", "8n");
+                else if (type === 'goal') synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
+                else if (type === 'bounce') synth.triggerAttackRelease("G3", "16n");
+                else if (type === 'unlock') synth.triggerAttackRelease(["E4", "B4", "E5"], "8n");
+                else if (type === 'error') memSynth.triggerAttackRelease("A1", "8n");
+                else if (type === 'jump') synth.triggerAttackRelease("E4", "16n");
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const soundIcon = document.getElementById('soundIcon');
+            const soundText = document.getElementById('soundText');
+            if (isAudioEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-cyan-400";
+                soundText.innerText = "Sound ON";
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-500";
+                soundText.innerText = "Sound OFF";
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('passwordInput');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('passwordInput');
+            const authScreen = document.getElementById('authScreen');
+            const errorMsg = document.getElementById('authErrorMsg');
+
+            if (input.value.trim() === MASTER_PASSWORD) {
+                playSound('unlock');
+                errorMsg.classList.add('opacity-0');
+                authScreen.classList.add('scale-105', 'opacity-0');
+                
+                setTimeout(() => {
+                    authScreen.classList.add('hidden');
+                    authScreen.classList.remove('scale-105', 'opacity-0');
+                    document.getElementById('hubScreen').classList.remove('hidden');
+                    document.getElementById('hubNavBtn').classList.remove('hidden');
+                    loadHighscores();
+                }, 300);
+            } else {
+                playSound('error');
+                errorMsg.classList.remove('opacity-0');
+                authScreen.classList.add('shake-anim');
+                setTimeout(() => {
+                    authScreen.classList.remove('shake-anim');
+                }, 400);
+            }
+        }
+
+        function lockPortal() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            activeGameMode = null;
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('hubScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('hubNavBtn').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
+        }
+
+        function goToHub() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            activeGameMode = null;
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('hubScreen').classList.remove('hidden');
+            loadHighscores();
+        }
+
+        /* Highscores Storage */
+        function loadHighscores() {
+            document.getElementById('hs-soccer').innerText = localStorage.getItem('hs_soccer') || '0-0';
+            document.getElementById('hs-pong').innerText = localStorage.getItem('hs_pong') || '0';
+            document.getElementById('hs-shootout').innerText = localStorage.getItem('hs_shootout') || '0';
+            document.getElementById('hs-runner').innerText = (localStorage.getItem('hs_runner') || '0') + 'm';
+            document.getElementById('hs-volley').innerText = localStorage.getItem('hs_volley') || '0';
+            document.getElementById('hs-juggler').innerText = localStorage.getItem('hs_juggler') || '0';
+        }
+
+        function saveHighscore(key, val) {
+            if (key === 'hs_soccer') {
+                localStorage.setItem(key, val);
+            } else {
+                const current = parseInt(localStorage.getItem(key) || '0');
+                if (val > current) localStorage.setItem(key, val);
+            }
+            loadHighscores();
+        }
+
+        /* Keyboard & Touch Event Listeners */
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function setupTouchBtn(elementId, keyCode) {
+            const btn = document.getElementById(elementId);
+            if (!btn) return;
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyCode] = true; }, { passive: false });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyCode] = false; }, { passive: false });
+            btn.addEventListener('mousedown', () => { keys[keyCode] = true; });
+            btn.addEventListener('mouseup', () => { keys[keyCode] = false; });
+        }
+
+        setupTouchBtn('btnUp', 'KeyW');
+        setupTouchBtn('btnDown', 'KeyS');
+        setupTouchBtn('btnLeft', 'KeyA');
+        setupTouchBtn('btnRight', 'KeyD');
+        setupTouchBtn('btnActionA', 'Space');
+        setupTouchBtn('btnActionB', 'KeyZ');
+        setupTouchBtn('btnActionC', 'KeyX');
+
+        /* Dynamic Launch Game Engine Router */
+        function launchGame(mode) {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            activeGameMode = mode;
+            document.getElementById('hubScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Button label updates based on active game
+            const labelA = document.getElementById('labelActionA');
+            const labelB = document.getElementById('labelActionB');
+            const labelC = document.getElementById('labelActionC');
+
+            if (mode === 'soccer') {
+                document.getElementById('activeGameTitle').innerText = "SUPER LIQUID SOCCER";
+                labelA.innerText = "SHOOT"; labelB.innerText = "LOB"; labelC.innerText = "SLIDE";
+                initSoccerGame(canvas, ctx);
+            } else if (mode === 'pong') {
+                document.getElementById('activeGameTitle').innerText = "LIQUID PONG / WATER HOCKEY";
+                labelA.innerText = "BOOST"; labelB.innerText = "WAVE"; labelC.innerText = "SPIN";
+                initPongGame(canvas, ctx);
+            } else if (mode === 'shootout') {
+                document.getElementById('activeGameTitle').innerText = "PENALTY SHOOTOUT LIQUID";
+                labelA.innerText = "SHOOT"; labelB.innerText = "CURVE"; labelC.innerText = "CHIP";
+                initShootoutGame(canvas, ctx);
+            } else if (mode === 'runner') {
+                document.getElementById('activeGameTitle').innerText = "SLIPPERY LIQUID RUNNER";
+                labelA.innerText = "JUMP"; labelB.innerText = "BOOST"; labelC.innerText = "SLAM";
+                initRunnerGame(canvas, ctx);
+            } else if (mode === 'volley') {
+                document.getElementById('activeGameTitle').innerText = "SLIME SOCCER VOLLEY";
+                labelA.innerText = "JUMP"; labelB.innerText = "SMASH"; labelC.innerText = "DIVE";
+                initVolleyGame(canvas, ctx);
+            } else if (mode === 'juggler') {
+                document.getElementById('activeGameTitle').innerText = "RETRO LIQUID JUGGLER";
+                labelA.innerText = "KICK"; labelB.innerText = "HEAD"; labelC.innerText = "FLICK";
+                initJugglerGame(canvas, ctx);
+            }
+        }
+
+        function resetCurrentGame() {
+            if (activeGameMode) launchGame(activeGameMode);
+        }
+
+
+        /* =================================================================
+           1. SUPER LIQUID SOCCER (Soft Body Jelly Physics Engine)
+           ================================================================= */
+        function initSoccerGame(canvas, ctx) {
+            const W = canvas.width;
+            const H = canvas.height;
+            const pitchM = 50;
+            const goalH = 150;
+            const goalY1 = (H - goalH) / 2;
+            const goalY2 = goalY1 + goalH;
+
+            // Particles Array for Liquid Splashes
+            const particles = [];
+
+            function spawnSplash(x, y, color) {
+                for (let i = 0; i < 12; i++) {
+                    particles.push({
+                        x, y,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
+                        life: 20,
+                        color
+                    });
+                }
+            }
+
+            // Soft Ball Physics
+            const ball = {
+                x: W / 2, y: H / 2,
+                vx: 0, vy: 0,
+                radius: 14,
+                squishX: 1, squishY: 1
+            };
+
+            // Player Object
+            class JellyPlayer {
+                constructor(x, y, color, isAI = false) {
+                    this.x = x; this.y = y;
+                    this.homeX = x; this.homeY = y;
+                    this.vx = 0; this.vy = 0;
+                    this.radius = 22;
+                    this.color = color;
+                    this.isAI = isAI;
+                    this.wobble = 0;
+                    this.isSliding = false;
+                    this.slideTimer = 0;
+                }
+
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vx *= 0.88;
+                    this.vy *= 0.88;
+
+                    if (this.isSliding) {
+                        this.slideTimer--;
+                        if (this.slideTimer <= 0) this.isSliding = false;
+                    }
+
+                    // Bounds
+                    this.x = Math.max(pitchM + this.radius, Math.min(W - pitchM - this.radius, this.x));
+                    this.y = Math.max(pitchM + this.radius, Math.min(H - pitchM - this.radius, this.y));
+                    this.wobble += 0.15;
+                }
+
+                draw() {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    const scaleX = this.isSliding ? 1.5 : 1 + Math.sin(this.wobble) * 0.08;
+                    const scaleY = this.isSliding ? 0.6 : 1 + Math.cos(this.wobble) * 0.08;
+                    ctx.scale(scaleX, scaleY);
+
+                    const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, this.radius);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(0.5, this.color);
+                    grad.addColorStop(1, '#0284c7');
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            const p1 = new JellyPlayer(W / 3, H / 2, '#06b6d4', false);
+            const p2 = new JellyPlayer((W * 2) / 3, H / 2, '#ec4899', true);
+
+            let scoreP1 = 0;
+            let scoreP2 = 0;
+            let matchTimer = 90;
+            let shotPower = 0;
+
+            const timerInt = setInterval(() => { if (matchTimer > 0) matchTimer--; }, 1000);
+
+            function gameLoop() {
+                // Movement Controls
+                const spd = p1.isSliding ? 2.5 : 1.3;
+                if (keys['KeyW'] || keys['ArrowUp']) p1.vy -= spd;
+                if (keys['KeyS'] || keys['ArrowDown']) p1.vy += spd;
+                if (keys['KeyA'] || keys['ArrowLeft']) p1.vx -= spd;
+                if (keys['KeyD'] || keys['ArrowRight']) p1.vx += spd;
+                p1.update();
+
+                // Slide Tackle
+                if (keys['KeyX'] && !p1.isSliding) {
+                    p1.isSliding = true;
+                    p1.slideTimer = 20;
+                    p1.vx *= 2.2;
+                    p1.vy *= 2.2;
+                    spawnSplash(p1.x, p1.y, '#38bdf8');
+                }
+
+                // AI Player Logic
+                if (p2.isAI) {
+                    const tx = ball.x > W / 2 ? ball.x : p2.homeX;
+                    const ty = ball.y;
+                    p2.vx += (tx - p2.x) * 0.035;
+                    p2.vy += (ty - p2.y) * 0.035;
+
+                    const dToBall = Math.hypot(ball.x - p2.x, ball.y - p2.y);
+                    if (dToBall < p2.radius + ball.radius + 10) {
+                        ball.vx -= 9;
+                        ball.vy += (Math.random() - 0.5) * 6;
+                        spawnSplash(ball.x, ball.y, '#ec4899');
+                        playSound('kick');
+                    }
+                }
+                p2.update();
+
+                // Player Kick / Shoot / Pass
+                const distToBall = Math.hypot(ball.x - p1.x, ball.y - p1.y);
+                if (distToBall < p1.radius + ball.radius + 20) {
+                    if (keys['Space']) { // Shoot
+                        ball.vx = 14;
+                        ball.vy = (ball.y - p1.y) * 0.4;
+                        spawnSplash(ball.x, ball.y, '#06b6d4');
+                        playSound('kick');
+                    } else if (keys['KeyZ']) { // Lob
+                        ball.vx = 10;
+                        ball.vy = -8;
+                        spawnSplash(ball.x, ball.y, '#38bdf8');
+                        playSound('kick');
+                    }
+                }
+
+                // Ball Movement & Collision
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                ball.vx *= 0.98;
+                ball.vy *= 0.98;
+
+                // Wall Collisions
+                if (ball.y - ball.radius < pitchM) { ball.y = pitchM + ball.radius; ball.vy *= -0.8; }
+                if (ball.y + ball.radius > H - pitchM) { ball.y = H - pitchM - ball.radius; ball.vy *= -0.8; }
+
+                // Goal Checks
+                if (ball.x - ball.radius < pitchM) {
+                    if (ball.y > goalY1 && ball.y < goalY2) {
+                        scoreP2++;
+                        triggerGoal();
+                    } else { ball.x = pitchM + ball.radius; ball.vx *= -0.8; }
+                }
+
+                if (ball.x + ball.radius > W - pitchM) {
+                    if (ball.y > goalY1 && ball.y < goalY2) {
+                        scoreP1++;
+                        triggerGoal();
+                    } else { ball.x = W - pitchM - ball.radius; ball.vx *= -0.8; }
+                }
+
+                // DRAW FIELD
+                ctx.fillStyle = '#064e3b';
+                ctx.fillRect(0, 0, W, H);
+
+                // Field Markings
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(pitchM, pitchM, W - pitchM * 2, H - pitchM * 2);
+
+                ctx.beginPath();
+                ctx.moveTo(W / 2, pitchM); ctx.lineTo(W / 2, H - pitchM);
+                ctx.arc(W / 2, H / 2, 70, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Goals
+                ctx.strokeRect(pitchM - 25, goalY1, 25, goalH);
+                ctx.strokeRect(W - pitchM, goalY1, 25, goalH);
+
+                // Update & Draw Particles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy; p.life--;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, 4, 4);
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+
+                // Draw Ball
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fill();
+
+                // Draw Players
+                p1.draw();
+                p2.draw();
+
+                // Scoreboard Overlay
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.fillRect(W / 2 - 120, 10, 240, 40);
+                ctx.font = '700 20px Orbitron';
+                ctx.fillStyle = '#38bdf8'; ctx.fillText(scoreP1, W / 2 - 80, 38);
+                ctx.fillStyle = '#f43f5e'; ctx.fillText(scoreP2, W / 2 + 65, 38);
+                ctx.fillStyle = '#ffffff'; ctx.fillText(`${matchTimer}s`, W / 2 - 15, 38);
+
+                if (activeGameMode === 'soccer') animationFrameId = requestAnimationFrame(gameLoop);
+                else clearInterval(timerInt);
+            }
+
+            function triggerGoal() {
+                saveHighscore('hs_soccer', `${scoreP1}-${scoreP2}`);
+                playSound('goal');
+                if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60 });
+                ball.x = W / 2; ball.y = H / 2; ball.vx = 0; ball.vy = 0;
+                p1.x = W / 3; p1.y = H / 2;
+                p2.x = (W * 2) / 3; p2.y = H / 2;
+            }
+
+            gameLoop();
+        }
+
+
+        /* =================================================================
+           2. LIQUID PONG / WATER HOCKEY ENGINE
+           ================================================================= */
+        function initPongGame(canvas, ctx) {
+            const W = canvas.width; const H = canvas.height;
+            let p1Y = H / 2 - 45; let p2Y = H / 2 - 45;
+            let p1Score = 0; let p2Score = 0;
+
+            const puck = { x: W / 2, y: H / 2, vx: 6, vy: 4, radius: 14 };
+
+            function gameLoop() {
+                if (keys['KeyW'] || keys['ArrowUp']) p1Y -= 7;
+                if (keys['KeyS'] || keys['ArrowDown']) p1Y += 7;
+                p1Y = Math.max(10, Math.min(H - 100, p1Y));
+
+                // AI Paddle
+                if (p2Y + 45 < puck.y - 10) p2Y += 5.5;
+                else if (p2Y + 45 > puck.y + 10) p2Y -= 5.5;
+
+                // Wave currents
+                puck.vy += Math.sin(puck.x * 0.02) * 0.15;
+                puck.x += puck.vx; puck.y += puck.vy;
+
+                if (puck.y - puck.radius < 0 || puck.y + puck.radius > H) { puck.vy *= -1; playSound('bounce'); }
+
+                // Paddles collision
+                if (puck.x - puck.radius < 40 && puck.y > p1Y && puck.y < p1Y + 90) {
+                    puck.vx = Math.abs(puck.vx) * 1.05 + 0.2;
+                    puck.x = 40 + puck.radius;
+                    playSound('kick');
+                }
+                if (puck.x + puck.radius > W - 40 && puck.y > p2Y && puck.y < p2Y + 90) {
+                    puck.vx = -Math.abs(puck.vx) * 1.05 - 0.2;
+                    puck.x = W - 40 - puck.radius;
+                    playSound('kick');
+                }
+
+                if (puck.x < 0) { p2Score++; resetPuck(); }
+                if (puck.x > W) { p1Score++; saveHighscore('hs_pong', p1Score); resetPuck(); }
+
+                ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = '#0284c7'; ctx.fillRect(25, p1Y, 15, 90);
+                ctx.fillStyle = '#ec4899'; ctx.fillRect(W - 40, p2Y, 15, 90);
+
+                ctx.beginPath(); ctx.arc(puck.x, puck.y, puck.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#38bdf8'; ctx.fill();
+
+                ctx.font = '700 28px Orbitron';
+                ctx.fillStyle = '#0284c7'; ctx.fillText(p1Score, W / 4, 45);
+                ctx.fillStyle = '#ec4899'; ctx.fillText(p2Score, (3 * W) / 4, 45);
+
+                if (activeGameMode === 'pong') animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            function resetPuck() {
+                playSound('goal');
+                puck.x = W / 2; puck.y = H / 2; puck.vx = 6; puck.vy = (Math.random() - 0.5) * 6;
+            }
+            gameLoop();
+        }
+
+
+        /* =================================================================
+           3. PENALTY SHOOTOUT LIQUID
+           ================================================================= */
+        function initShootoutGame(canvas, ctx) {
+            const W = canvas.width; const H = canvas.height;
+            let aimAngle = 0, aimDir = 1, streak = 0, state = 'aiming';
+            const keeper = { x: W / 2, y: 140, vx: 3.5 };
+            const ball = { x: W / 2, y: H - 80, vx: 0, vy: 0 };
+
+            function gameLoop() {
+                if (state === 'aiming') {
+                    aimAngle += 0.03 * aimDir;
+                    if (aimAngle > 1.2 || aimAngle < -1.2) aimDir *= -1;
+                    if (keys['Space']) {
+                        state = 'kicked';
+                        ball.vx = Math.sin(aimAngle) * 14;
+                        ball.vy = -Math.cos(aimAngle) * 14;
+                        playSound('kick');
+                    }
+                } else if (state === 'kicked') {
+                    ball.x += ball.vx; ball.y += ball.vy;
+                    keeper.x += keeper.vx;
+                    if (keeper.x < W / 2 - 160 || keeper.x > W / 2 + 160) keeper.vx *= -1;
+
+                    if (ball.y <= 160) {
+                        if (Math.abs(ball.x - keeper.x) < 40) {
+                            streak = 0; playSound('error');
+                        } else if (ball.x > W / 2 - 180 && ball.x < W / 2 + 180) {
+                            streak++; saveHighscore('hs_shootout', streak); playSound('goal');
+                        } else { streak = 0; playSound('error'); }
+                        setTimeout(() => { ball.x = W / 2; ball.y = H - 80; state = 'aiming'; }, 1200);
+                        state = 'result';
+                    }
+                }
+
+                ctx.fillStyle = '#064e3b'; ctx.fillRect(0, 0, W, H);
+                ctx.strokeStyle = '#ffffff'; ctx.strokeRect(W / 2 - 180, 80, 360, 100);
+                
+                // Keeper
+                ctx.fillStyle = '#ec4899'; ctx.fillRect(keeper.x - 30, keeper.y - 15, 60, 25);
+                // Ball
+                ctx.beginPath(); ctx.arc(ball.x, ball.y, 14, 0, Math.PI * 2);
+                ctx.fillStyle = '#38bdf8'; ctx.fill();
+
+                ctx.font = '700 22px Orbitron'; ctx.fillStyle = '#ffffff';
+                ctx.fillText(`STREAK: ${streak}`, 30, 40);
+
+                if (activeGameMode === 'shootout') animationFrameId = requestAnimationFrame(gameLoop);
+            }
+            gameLoop();
+        }
+
+
+        /* =================================================================
+           4. SLIPPERY LIQUID RUNNER
+           ================================================================= */
+        function initRunnerGame(canvas, ctx) {
+            const W = canvas.width; const H = canvas.height;
+            let dist = 0, isJumping = false;
+            const runner = { x: 120, y: H - 100, vy: 0, radius: 18 };
+            const obstacles = [];
+
+            function gameLoop() {
+                dist += 1;
+                saveHighscore('hs_runner', Math.floor(dist / 10));
+
+                if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && !isJumping) {
+                    runner.vy = -12;
+                    isJumping = true;
+                    playSound('jump');
+                }
+
+                runner.y += runner.vy;
+                runner.vy += 0.6; // Gravity
+                if (runner.y >= H - 100) { runner.y = H - 100; isJumping = false; }
+
+                if (Math.random() < 0.02 && obstacles.length < 3) {
+                    obstacles.push({ x: W + 20, w: 25, h: 40 });
+                }
+
+                ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = '#047857'; ctx.fillRect(0, H - 80, W, 80);
+
+                // Draw Runner
+                ctx.beginPath(); ctx.arc(runner.x, runner.y, runner.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#06b6d4'; ctx.fill();
+
+                // Draw Obstacles
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const ob = obstacles[i];
+                    ob.x -= 6;
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.fillRect(ob.x, H - 80 - ob.h, ob.w, ob.h);
+
+                    if (Math.hypot(runner.x - ob.x, runner.y - (H - 80)) < runner.radius + 15) {
+                        playSound('error');
+                        dist = 0;
+                        obstacles.length = 0;
+                    }
+                    if (ob.x < -30) obstacles.splice(i, 1);
+                }
+
+                ctx.font = '700 22px Orbitron'; ctx.fillStyle = '#ffffff';
+                ctx.fillText(`DISTANCE: ${Math.floor(dist / 10)}m`, 30, 40);
+
+                if (activeGameMode === 'runner') animationFrameId = requestAnimationFrame(gameLoop);
+            }
+            gameLoop();
+        }
+
+
+        /* =================================================================
+           5. SLIME SOCCER VOLLEY
+           ================================================================= */
+        function initVolleyGame(canvas, ctx) {
+            const W = canvas.width; const H = canvas.height;
+            let score = 0;
+            const p1 = { x: 180, y: H - 80, vy: 0 };
+            const ball = { x: W / 4, y: 150, vx: 3, vy: 0 };
+
+            function gameLoop() {
+                if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && p1.y >= H - 80) {
+                    p1.vy = -13; playSound('jump');
+                }
+                p1.y += p1.vy; p1.vy += 0.7;
+                if (p1.y > H - 80) p1.y = H - 80;
+
+                ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.35;
+
+                if (ball.x < 10 || ball.x > W - 10) ball.vx *= -1;
+
+                // Slime collision
+                if (Math.hypot(ball.x - p1.x, ball.y - p1.y) < 45) {
+                    ball.vy = -10;
+                    ball.vx = (ball.x - p1.x) * 0.3;
+                    score++;
+                    saveHighscore('hs_volley', score);
+                    playSound('kick');
+                }
+
+                if (ball.y > H - 60) {
+                    playSound('error');
+                    score = 0;
+                    ball.x = W / 4; ball.y = 100; ball.vx = 3; ball.vy = 0;
+                }
+
+                ctx.fillStyle = '#090d16'; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = '#10b981'; ctx.fillRect(0, H - 50, W, 50);
+
+                // Net
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(W / 2 - 5, H - 180, 10, 130);
+
+                // Slime Player
+                ctx.beginPath(); ctx.arc(p1.x, p1.y, 35, Math.PI, 0); ctx.fillStyle = '#06b6d4'; ctx.fill();
+
+                // Ball
+                ctx.beginPath(); ctx.arc(ball.x, ball.y, 14, 0, Math.PI * 2); ctx.fillStyle = '#facc15'; ctx.fill();
+
+                ctx.font = '700 22px Orbitron'; ctx.fillStyle = '#ffffff';
+                ctx.fillText(`SCORE: ${score}`, 30, 40);
+
+                if (activeGameMode === 'volley') animationFrameId = requestAnimationFrame(gameLoop);
+            }
+            gameLoop();
+        }
+
+
+        /* =================================================================
+           6. RETRO LIQUID JUGGLER
+           ================================================================= */
+        function initJugglerGame(canvas, ctx) {
+            const W = canvas.width; const H = canvas.height;
+            let juggles = 0;
+            let paddleX = W / 2 - 60;
+            const balls = [{ x: W / 2, y: 100, vx: 2.5, vy: 2 }];
+
+            function gameLoop() {
+                if (keys['KeyA'] || keys['ArrowLeft']) paddleX -= 8;
+                if (keys['KeyD'] || keys['ArrowRight']) paddleX += 8;
+                paddleX = Math.max(0, Math.min(W - 120, paddleX));
+
+                for (let i = balls.length - 1; i >= 0; i--) {
+                    const b = balls[i];
+                    b.x += b.vx; b.y += b.vy;
+
+                    if (b.x < 10 || b.x > W - 10) b.vx *= -1;
+
+                    if (b.y >= H - 40 && b.x >= paddleX && b.x <= paddleX + 120) {
+                        b.vy = -Math.abs(b.vy) * 1.02;
+                        b.vx += (b.x - (paddleX + 60)) * 0.08;
+                        juggles++;
+                        saveHighscore('hs_juggler', juggles);
+                        playSound('kick');
+                    }
+
+                    if (b.y > H + 20) {
+                        balls.splice(i, 1);
+                        if (balls.length === 0) {
+                            juggles = 0; playSound('error');
+                            balls.push({ x: W / 2, y: 100, vx: 2.5, vy: 2 });
+                        }
+                    }
+                }
+
+                ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, W, H);
+                ctx.fillStyle = '#a855f7'; ctx.fillRect(paddleX, H - 30, 120, 15);
+
+                balls.forEach(b => {
+                    ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI * 2);
+                    ctx.fillStyle = '#e879f9'; ctx.fill();
+                });
+
+                ctx.font = '700 22px Orbitron'; ctx.fillStyle = '#ffffff';
+                ctx.fillText(`JUGGLES: ${juggles}`, 30, 40);
+
+                if (activeGameMode === 'juggler') animationFrameId = requestAnimationFrame(gameLoop);
+            }
+            gameLoop();
+        }
+    </script>
+</body>
+</html>
